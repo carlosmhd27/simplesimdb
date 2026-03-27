@@ -93,11 +93,15 @@ In this example `execute.sh` parses the json input into command line arguments t
 ### execute.sh ###
 #!/bin/bash
 
-: ${FELTOR_PATH:="../feltor"}
+: ${FELTOR_PATH:="../feltor/build/cpu"}
 
-# Feltor's ds_t requires input parameters from the command line
+# Feltor's ds_b requires input parameters from the command line
 # so we parse the json string using jq
-cat $1 | jq '.n, .Nx, .Ny, .Nz, .mx, .my' | $FELTOR_PATH/inc/geometries/ds_t > $2
+cat $1 | jq '.n, .Nx, .Ny, .Nz, .mx, .my' | $FELTOR_PATH/inc/geometries/ds_b > $2
+
+# The ds_b executable can be compiled inside the feltor repository as follows:
+# cmake --build build/cpu --target dg_geometries_ds_b
+# one can change cpu to any accepted device (gpu, omp, mpi-cpu, ...)
 ```
 ### Human readable names
 Sometimes, if the number of simulations to run is small a human readable naming
