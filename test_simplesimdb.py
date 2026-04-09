@@ -26,6 +26,26 @@ def test_creation():
     m.delete_all()
     assert not os.path.isdir(m.directory)
 
+def test_creation_with_interpreter():
+    print("TEST CREATION WITH INTERPRETER")
+    executable = 'import sys; import os; os.system("cp " + sys.argv[1] + " " + sys.argv[2])'
+    m = sim.Manager(
+        directory="creation_interpreter_test",
+        executable=executable,
+        filetype="json",
+        interpreter="python -c",
+    )
+    assert m.directory == "creation_interpreter_test"
+    assert m.executable == executable
+    assert m.filetype == "json"
+    assert m.interpreter == ["python", "-c"]
+    inputdata = {"Hello": "World"}
+    m.create(inputdata, 0)
+    content = m.table()
+    assert content == [inputdata]
+    m.delete_all()
+    assert not os.path.isdir(m.directory)
+
 
 def test_selection():
     print("TEST SELECTION")
@@ -82,13 +102,38 @@ def test_named_creation():
 
 def test_repeater():
     print("TEST REPEATER")
-    m = sim.Repeater("touch", "temp.json", "temp.nc")
+    os.makedirs("temp_repeater", exist_ok=True)
+    m = sim.Repeater("touch", "temp_repeater/temp.json", "temp_repeater/temp.nc")
     inputdata = {"Hello": "World"}
     m.run(inputdata, error="display", stdout="display")
-    assert os.path.isfile("temp.json")
-    assert os.path.isfile("temp.nc")
+    assert os.path.isfile("temp_repeater/temp.json")
+    assert os.path.isfile("temp_repeater/temp.nc")
     m.executable = "echo"
     m.run(inputdata, error="display", stdout="display")
     m.clean()
-    assert not os.path.isfile("temp.json")
-    assert not os.path.isfile("temp.nc")
+    assert not os.path.isfile("temp_repeater/temp.json")
+    assert not os.path.isfile("temp_repeater/temp.nc")
+    if os.path.isdir("temp_repeater") and not os.listdir("temp_repeater"):
+        os.rmdir("temp_repeater")
+
+def test_repeater_with_interpreter():
+    print("TEST REPEATER WITH INTERPRETER")
+    os.makedirs("temp_repeater_interpreter", exist_ok=True)
+    executable = 'import sys; import os; os.system("touch " + sys.argv[1] + " " + sys.argv[2])'
+    m = sim.Repeater(
+        executable,
+        "temp_repeater_interpreter/temp.json",
+        "temp_repeater_interpreter/temp.nc",
+        interpreter="python -c",
+    )
+    inputdata = {"Hello": "World"}
+    m.run(inputdata, error="display", stdout="display")
+    assert os.path.isfile("temp_repeater_interpreter/temp.json")
+    assert os.path.isfile("temp_repeater_interpreter/temp.nc")
+    m.executable = 'import sys; import os; os.system("echo " + sys.argv[1] + " " + sys.argv[2])'
+    m.run(inputdata, error="display", stdout="display")
+    m.clean()
+    assert not os.path.isfile("temp_repeater_interpreter/temp.json")
+    assert not os.path.isfile("temp_repeater_interpreter/temp.nc")
+    if os.path.isdir("temp_repeater_interpreter") and not os.listdir("temp_repeater_interpreter"):
+        os.rmdir("temp_repeater_interpreter")
