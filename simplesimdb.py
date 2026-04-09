@@ -30,7 +30,7 @@ class Repeater:
 
     def __init__(
         self, executable="./execute.sh", inputfile="temp.json", outputfile="temp.nc",
-        interpreter: str | list[str] = None
+        interpreter: str | list[str] | None = None
     ):
         """Set the executable and files to use in the run method"""
         self.executable = executable
@@ -38,9 +38,9 @@ class Repeater:
         self.outputfile = outputfile
         if interpreter is None or len(interpreter) == 0:
             self.interpreter = []
-        elif type(interpreter) == str:
+        elif type(interpreter) is str:
             self.interpreter = interpreter.split()
-        elif type(interpreter) == list:
+        elif type(interpreter) is list:
             self.interpreter = interpreter
         else:
             raise Exception("interpreter must be None, a string or a list of strings")
@@ -56,7 +56,7 @@ class Repeater:
     @property
     def outputfile(self):
         return self.__outputfile
-    
+
     @property
     def interpreter(self):
         return self.__interpreter
@@ -77,9 +77,9 @@ class Repeater:
     def interpreter(self, interpreter):
         if interpreter is None or len(interpreter) == 0:
             self.__interpreter = []
-        elif type(interpreter) == str:
+        elif type(interpreter) is str:
             self.__interpreter = interpreter.split()
-        elif type(interpreter) == list:
+        elif type(interpreter) is list:
             self.__interpreter = interpreter
         else:
             raise Exception("interpreter must be None, a string or a list of strings")
@@ -106,7 +106,12 @@ class Repeater:
             json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
         try:
             process = subprocess.run(
-                self.__interpreter + [self.__executable, self.__inputfile, self.__outputfile],
+                [
+                    *self.__interpreter,
+                    self.__executable,
+                    self.__inputfile,
+                    self.__outputfile
+                ],
                 check=True,
                 capture_output=True,
             )
@@ -204,33 +209,34 @@ class Manager:
             file extension of the output files
         executable:
             The executable that generates the data.
-            executable is called using subprocess.run([interpreter, executable, 
+            executable is called using subprocess.run([interpreter, executable,
             directory/hashid.json, directory/hashid.filetype],...) with
-            2 arguments - a json file as input (do not change the input else the file is not
-            recognized any more) and one output file (that executable needs to
+            2 arguments - a json file as input (do not change the input else the file
+            is not recognized any more) and one output file (that executable needs to
             generate) (if your code does not take json as input you can for example
             parse json in bash using jq)
         interpreter:
             (optional) If your executable is not directly runnable but needs to be
             called via an interpreter (e.g. python, julia, R, powershell, etc.) you can
-            specify the interpreter here as a whitespace separated string or list of strings.
-            For example if your executable is a python script you can set interpreter="python.exe"
-            and the code will be called as subprocess.run(["python.exe", executable, ...],...)
-            You can also include interpreter arguments here. For example to run in a specific 
-            conda environment, set interpreter=["conda", "run", "-n", "myenv"]
-            or interpreter="conda run -n myenv" and the code will be called as
-            subprocess.run(["conda", "run", "-n", "myenv", executable, ...],...)
+            specify the interpreter here as a whitespace separated string or list of
+            strings. For example if your executable is a python script you can set
+            interpreter="python.exe" and the code will be called as
+            subprocess.run(["python.exe", executable, ...],...)
+            You can also include interpreter arguments here. For example to run in
+            a specific conda environment, set interpreter=["conda", "run", "-n",
+            "myenv"] or interpreter="conda run -n myenv" and the code will be called
+            as subprocess.run(["conda", "run", "-n", "myenv", executable, ...],...)
         """
         self.directory = directory
         os.makedirs(self.__directory, exist_ok=True)
         self.filetype = filetype
         self.executable = executable
-                
+
         if interpreter is None or len(interpreter) == 0:
             self.interpreter = []
-        elif type(interpreter) == str:
+        elif type(interpreter) is str:
             self.interpreter = interpreter.split()
-        elif type(interpreter) == list:
+        elif type(interpreter) is list:
             self.interpreter = interpreter
         else:
             raise Exception("interpreter must be None, a string or a list of strings")
@@ -268,7 +274,7 @@ class Manager:
     def filetype(self) -> str:
         """File extension of the output files"""
         return self.__filetype
-    
+
     @property
     def interpreter(self) -> list[str]:
         """The interpreter that runs the executable."""
@@ -291,9 +297,9 @@ class Manager:
     def interpreter(self, interpreter: str | list[str] | None):
         if interpreter is None or len(interpreter) == 0:
             self.__interpreter = []
-        elif type(interpreter) == str:
+        elif type(interpreter) is str:
             self.__interpreter = interpreter.split()
-        elif type(interpreter) == list:
+        elif type(interpreter) is list:
             self.__interpreter = interpreter
         else:
             raise Exception("interpreter must be None, a string or a list of strings")
@@ -397,7 +403,11 @@ class Manager:
         if self.__executable is None:
             raise Exception("Executable not set! Set it with m.executable = '...'")
 
-        command = self.__interpreter + [self.__executable, self.jsonfile(js), ncfile]
+        command = [
+                    *self.__interpreter,
+                    self.__executable,
+                    self.jsonfile(js),
+                    ncfile]
 
         # Check if the simulation is a restart
         if n > 0:

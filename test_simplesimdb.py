@@ -26,9 +26,13 @@ def test_creation():
     m.delete_all()
     assert not os.path.isdir(m.directory)
 
+
 def test_creation_with_interpreter():
     print("TEST CREATION WITH INTERPRETER")
-    executable = 'import sys; import os; os.system("cp " + sys.argv[1] + " " + sys.argv[2])'
+    executable = (
+        'import sys; import subprocess; '
+        'subprocess.run(["cp", sys.argv[1], sys.argv[2]])'
+        )
     m = sim.Manager(
         directory="creation_interpreter_test",
         executable=executable,
@@ -113,13 +117,19 @@ def test_repeater():
     m.clean()
     assert not os.path.isfile("temp_repeater/temp.json")
     assert not os.path.isfile("temp_repeater/temp.nc")
-    if os.path.isdir("temp_repeater") and not os.listdir("temp_repeater"):
+    temp_folder_exists = os.path.isdir("temp_repeater")
+    temp_folder_empty = not os.listdir("temp_repeater")
+    if temp_folder_exists and temp_folder_empty:
         os.rmdir("temp_repeater")
+
 
 def test_repeater_with_interpreter():
     print("TEST REPEATER WITH INTERPRETER")
     os.makedirs("temp_repeater_interpreter", exist_ok=True)
-    executable = 'import sys; import os; os.system("touch " + sys.argv[1] + " " + sys.argv[2])'
+    executable = (
+            'import sys; import subprocess; '
+            'subprocess.run(["touch", sys.argv[1], sys.argv[2]])'
+            )
     m = sim.Repeater(
         executable,
         "temp_repeater_interpreter/temp.json",
@@ -130,10 +140,15 @@ def test_repeater_with_interpreter():
     m.run(inputdata, error="display", stdout="display")
     assert os.path.isfile("temp_repeater_interpreter/temp.json")
     assert os.path.isfile("temp_repeater_interpreter/temp.nc")
-    m.executable = 'import sys; import os; os.system("echo " + sys.argv[1] + " " + sys.argv[2])'
+    m.executable = (
+            'import sys; import subprocess; '
+            'subprocess.run(["echo", sys.argv[1], sys.argv[2]])'
+            )
     m.run(inputdata, error="display", stdout="display")
     m.clean()
     assert not os.path.isfile("temp_repeater_interpreter/temp.json")
     assert not os.path.isfile("temp_repeater_interpreter/temp.nc")
-    if os.path.isdir("temp_repeater_interpreter") and not os.listdir("temp_repeater_interpreter"):
+    temp_folder_exists = os.path.isdir("temp_repeater_interpreter")
+    temp_folder_empty = not os.listdir("temp_repeater_interpreter")
+    if temp_folder_exists and temp_folder_empty:
         os.rmdir("temp_repeater_interpreter")
