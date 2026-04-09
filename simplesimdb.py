@@ -29,12 +29,21 @@ class Repeater:
     """
 
     def __init__(
-        self, executable="./execute.sh", inputfile="temp.json", outputfile="temp.nc"
+        self, executable="./execute.sh", inputfile="temp.json", outputfile="temp.nc",
+        interpreter: str | list[str] = None
     ):
         """Set the executable and files to use in the run method"""
         self.executable = executable
         self.inputfile = inputfile
         self.outputfile = outputfile
+        if interpreter is None or len(interpreter) == 0:
+            self.interpreter = []
+        elif type(interpreter) == str:
+            self.interpreter = interpreter.split()
+        elif type(interpreter) == list:
+            self.interpreter = interpreter
+        else:
+            raise Exception("interpreter must be None, a string or a list of strings")
 
     @property
     def executable(self):
@@ -47,6 +56,10 @@ class Repeater:
     @property
     def outputfile(self):
         return self.__outputfile
+    
+    @property
+    def interpreter(self):
+        return self.__interpreter
 
     @executable.setter
     def executable(self, executable):
@@ -59,6 +72,17 @@ class Repeater:
     @outputfile.setter
     def outputfile(self, outputfile):
         self.__outputfile = outputfile
+
+    @interpreter.setter
+    def interpreter(self, interpreter):
+        if interpreter is None or len(interpreter) == 0:
+            self.__interpreter = []
+        elif type(interpreter) == str:
+            self.__interpreter = interpreter.split()
+        elif type(interpreter) == list:
+            self.__interpreter = interpreter
+        else:
+            raise Exception("interpreter must be None, a string or a list of strings")
 
     def run(self, js: JSONDict, error: str = "display", stdout: str = "ignore"):
         """Write inputfile and then run a simulation
@@ -82,7 +106,7 @@ class Repeater:
             json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
         try:
             process = subprocess.run(
-                [self.__executable, self.__inputfile, self.__outputfile],
+                self.__interpreter + [self.__executable, self.__inputfile, self.__outputfile],
                 check=True,
                 capture_output=True,
             )
@@ -147,6 +171,7 @@ class Manager:
         directory: PathLike = "./data",
         filetype: str = "nc",
         executable: str = "./execute.sh",
+        interpreter: str | list[str] | None = None,
     ):
         """Init the Manager class
 
@@ -159,6 +184,7 @@ class Manager:
 
             subprocess.run(
                 [
+                    interpreter,
                     executable,
                     directory/hashid.json,
                     directory/hashid0xN.filetype,
@@ -178,18 +204,36 @@ class Manager:
             file extension of the output files
         executable:
             The executable that generates the data.
-            executable is called using subprocess.run([executable,
-            directory/hashid.json, directory/hashid.filetype],...) with 2 arguments
-            - a json file as input (do not change the input else the file is not
+            executable is called using subprocess.run([interpreter, executable, 
+            directory/hashid.json, directory/hashid.filetype],...) with
+            2 arguments - a json file as input (do not change the input else the file is not
             recognized any more) and one output file (that executable needs to
             generate) (if your code does not take json as input you can for example
             parse json in bash using jq)
-
+        interpreter:
+            (optional) If your executable is not directly runnable but needs to be
+            called via an interpreter (e.g. python, julia, R, powershell, etc.) you can
+            specify the interpreter here as a whitespace separated string or list of strings.
+            For example if your executable is a python script you can set interpreter="python.exe"
+            and the code will be called as subprocess.run(["python.exe", executable, ...],...)
+            You can also include interpreter arguments here. For example to run in a specific 
+            conda environment, set interpreter=["conda", "run", "-n", "myenv"]
+            or interpreter="conda run -n myenv" and the code will be called as
+            subprocess.run(["conda", "run", "-n", "myenv", executable, ...],...)
         """
         self.directory = directory
         os.makedirs(self.__directory, exist_ok=True)
         self.filetype = filetype
         self.executable = executable
+                
+        if interpreter is None or len(interpreter) == 0:
+            self.interpreter = []
+        elif type(interpreter) == str:
+            self.interpreter = interpreter.split()
+        elif type(interpreter) == list:
+            self.interpreter = interpreter
+        else:
+            raise Exception("interpreter must be None, a string or a list of strings")
 
     @property
     def directory(self) -> PathLike:
@@ -203,7 +247,7 @@ class Manager:
     def executable(self) -> str:
         """The executable that generates the data.
 
-        The create method calls subprocess.run([executable,
+        The create method calls subprocess.run([interpreter, executable,
         directory/hashid.json, directory/hashid.filetype],...) that is it must
         take 2 arguments - a json file as input (do not change the input else
         the file is not recognized any more) and one output file (that
@@ -214,7 +258,7 @@ class Manager:
         ----------------------------------
         If you intend to use the restart option (by passing a simulation number
         n>0 to create), the executable is called with
-        subprocess.run([executable, directory/hashid.json,
+        subprocess.run([interpreter, executable, directory/hashid.json,
         directory/hashid0xN.filetype, directory/hashid0x(N-1).filetype],...)
         that is it must take a third argument (the previous simulation)
         """
@@ -224,6 +268,11 @@ class Manager:
     def filetype(self) -> str:
         """File extension of the output files"""
         return self.__filetype
+    
+    @property
+    def interpreter(self) -> list[str]:
+        """The interpreter that runs the executable."""
+        return self.__interpreter
 
     @directory.setter
     def directory(self, directory: PathLike):
@@ -237,6 +286,17 @@ class Manager:
     @filetype.setter
     def filetype(self, filetype: str):
         self.__filetype = filetype
+
+    @interpreter.setter
+    def interpreter(self, interpreter: str | list[str] | None):
+        if interpreter is None or len(interpreter) == 0:
+            self.__interpreter = []
+        elif type(interpreter) == str:
+            self.__interpreter = interpreter.split()
+        elif type(interpreter) == list:
+            self.__interpreter = interpreter
+        else:
+            raise Exception("interpreter must be None, a string or a list of strings")
 
     def create(
         self,
@@ -315,24 +375,7 @@ class Manager:
                     json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
             # Run the code to create output file
             try:
-                # Check if the simulation is a restart
-                if n == 0:
-                    process = subprocess.run(
-                        [self.__executable, self.jsonfile(js), ncfile],
-                        check=True,
-                        capture_output=True,
-                    )
-                    if stdout == "display":
-                        print(process.stdout)
-                else:
-                    previous_ncfile = self.outfile(js, n - 1)
-                    process = subprocess.run(
-                        [self.__executable, self.jsonfile(js), ncfile, previous_ncfile],
-                        check=True,
-                        capture_output=True,
-                    )
-                    if stdout == "display":
-                        print(process.stdout)
+                self.__execute(js, ncfile, n, stdout)
             except subprocess.CalledProcessError as e:
                 # clean up entry and escalate exception
                 if os.path.isfile(ncfile):
@@ -345,6 +388,24 @@ class Manager:
                     raise e
 
             return ncfile
+
+    def __execute(self, js, ncfile, n=0, stdout="ignore"):
+        """Helper function to run the executable with the correct arguments
+
+        This is used in create to keep the code cleaner and reduce identation depth.
+        """
+        if self.__executable is None:
+            raise Exception("Executable not set! Set it with m.executable = '...'")
+
+        command = self.__interpreter + [self.__executable, self.jsonfile(js), ncfile]
+
+        # Check if the simulation is a restart
+        if n > 0:
+            previous_ncfile = self.outfile(js, n - 1)
+            command.append(previous_ncfile)
+        process = subprocess.run(command, check=True, capture_output=True)
+        if stdout == "display":
+            print(process.stdout)
 
     def recreate(
         self,
