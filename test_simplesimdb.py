@@ -30,9 +30,9 @@ def test_creation():
 def test_creation_with_interpreter():
     print("TEST CREATION WITH INTERPRETER")
     executable = (
-        'import sys; import subprocess; '
-        'subprocess.run(["cp", sys.argv[1], sys.argv[2]])'
-        )
+        "import sys; import subprocess; "
+        "subprocess.run(['cp', sys.argv[1], sys.argv[2]])"
+    )
     m = sim.Manager(
         directory="creation_interpreter_test",
         executable=executable,
@@ -127,9 +127,9 @@ def test_repeater_with_interpreter():
     print("TEST REPEATER WITH INTERPRETER")
     os.makedirs("temp_repeater_interpreter", exist_ok=True)
     executable = (
-            'import sys; import subprocess; '
-            'subprocess.run(["touch", sys.argv[1], sys.argv[2]])'
-            )
+        "import sys; import subprocess; "
+        "subprocess.run(['touch', sys.argv[1], sys.argv[2]])"
+    )
     m = sim.Repeater(
         executable,
         "temp_repeater_interpreter/temp.json",
@@ -141,9 +141,9 @@ def test_repeater_with_interpreter():
     assert os.path.isfile("temp_repeater_interpreter/temp.json")
     assert os.path.isfile("temp_repeater_interpreter/temp.nc")
     m.executable = (
-            'import sys; import subprocess; '
-            'subprocess.run(["echo", sys.argv[1], sys.argv[2]])'
-            )
+        "import sys; import subprocess; "
+        "subprocess.run(['echo', sys.argv[1], sys.argv[2]])"
+    )
     m.run(inputdata, error="display", stdout="display")
     m.clean()
     assert not os.path.isfile("temp_repeater_interpreter/temp.json")

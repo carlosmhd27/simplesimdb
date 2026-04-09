@@ -29,8 +29,11 @@ class Repeater:
     """
 
     def __init__(
-        self, executable="./execute.sh", inputfile="temp.json", outputfile="temp.nc",
-        interpreter: str | list[str] | None = None
+        self,
+        executable="./execute.sh",
+        inputfile="temp.json",
+        outputfile="temp.nc",
+        interpreter: str | list[str] | None = None,
     ):
         """Set the executable and files to use in the run method"""
         self.executable = executable
@@ -110,7 +113,7 @@ class Repeater:
                     *self.__interpreter,
                     self.__executable,
                     self.__inputfile,
-                    self.__outputfile
+                    self.__outputfile,
                 ],
                 check=True,
                 capture_output=True,
@@ -403,11 +406,7 @@ class Manager:
         if self.__executable is None:
             raise Exception("Executable not set! Set it with m.executable = '...'")
 
-        command = [
-                    *self.__interpreter,
-                    self.__executable,
-                    self.jsonfile(js),
-                    ncfile]
+        command = [*self.__interpreter, self.__executable, self.jsonfile(js), ncfile]
 
         # Check if the simulation is a restart
         if n > 0:
@@ -676,37 +675,21 @@ class Manager:
             )
         if hashid in registry:
             if name != registry[hashid]:
-                raise Exception(
-                    "The name '"
-                    + name
-                    + "' cannot be used! The\
- input file is already known under the name '"
-                    + registry[hashid]
-                    + "'. Use\
- delete to clear the registry."
-                )
+                raise Exception("The name '" + name + "' cannot be used! The\
+ input file is already known under the name '" + registry[hashid] + "'. Use\
+ delete to clear the registry.")
         else:
             jsonfile = os.path.join(self.__directory, hashid + ".json")
             if os.path.isfile(jsonfile):
-                raise Exception(
-                    "The name '"
-                    + name
-                    + "' cannot be used! The\
- input file is already known under the name '"
-                    + jsonfile
-                    + "'. Use\
- delete to clear the registry."
-                )
+                raise Exception("The name '" + name + "' cannot be used! The\
+ input file is already known under the name '" + jsonfile + "'. Use\
+ delete to clear the registry.")
 
             registry[hashid] = name
         for key, value in registry.items():
             if (value == name) and key != hashid:
-                raise Exception(
-                    "The name '"
-                    + name
-                    + "' is already in use\
- for a different simulation. Choose a different name!"
-                )
+                raise Exception("The name '" + name + "' is already in use\
+ for a different simulation. Choose a different name!")
 
         self.set_registry(registry)
 
