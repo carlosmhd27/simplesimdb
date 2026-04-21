@@ -30,23 +30,14 @@ class Repeater:
 
     def __init__(
         self,
-        executable="./execute.sh",
+        executable: str | list[str] = "./execute.sh",
         inputfile="temp.json",
         outputfile="temp.nc",
-        interpreter: str | list[str] | None = None,
     ):
         """Set the executable and files to use in the run method"""
-        self.executable = executable
         self.inputfile = inputfile
         self.outputfile = outputfile
-        if interpreter is None or len(interpreter) == 0:
-            self.interpreter = []
-        elif type(interpreter) is str:
-            self.interpreter = interpreter.split()
-        elif type(interpreter) is list:
-            self.interpreter = interpreter
-        else:
-            raise Exception("interpreter must be None, a string or a list of strings")
+        self.executable = executable
 
     @property
     def executable(self):
@@ -60,13 +51,16 @@ class Repeater:
     def outputfile(self):
         return self.__outputfile
 
-    @property
-    def interpreter(self):
-        return self.__interpreter
-
     @executable.setter
     def executable(self, executable):
-        self.__executable = executable
+        if executable is None or type(executable) not in [str, list]:
+            raise Exception("Executable must be given as a string or list of strings")
+        elif len(executable) == 0:
+            raise Exception("Executable cannot be empty string or list")
+        elif type(executable) is str:
+            self.__executable = [executable]
+        elif type(executable) is list:
+            self.__executable = executable
 
     @inputfile.setter
     def inputfile(self, inputfile):
@@ -75,17 +69,6 @@ class Repeater:
     @outputfile.setter
     def outputfile(self, outputfile):
         self.__outputfile = outputfile
-
-    @interpreter.setter
-    def interpreter(self, interpreter):
-        if interpreter is None or len(interpreter) == 0:
-            self.__interpreter = []
-        elif type(interpreter) is str:
-            self.__interpreter = interpreter.split()
-        elif type(interpreter) is list:
-            self.__interpreter = interpreter
-        else:
-            raise Exception("interpreter must be None, a string or a list of strings")
 
     def run(self, js: JSONDict, error: str = "display", stdout: str = "ignore"):
         """Write inputfile and then run a simulation
@@ -110,8 +93,7 @@ class Repeater:
         try:
             process = subprocess.run(
                 [
-                    *self.__interpreter,
-                    self.__executable,
+                    *self.__executable,
                     self.__inputfile,
                     self.__outputfile,
                 ],
@@ -178,8 +160,7 @@ class Manager:
         self,
         directory: PathLike = "./data",
         filetype: str = "nc",
-        executable: str = "./execute.sh",
-        interpreter: str | list[str] | None = None,
+        executable: str | list[str] = "./execute.sh",
     ):
         """Init the Manager class
 
@@ -192,8 +173,7 @@ class Manager:
 
             subprocess.run(
                 [
-                    interpreter,
-                    executable,
+                    *executable,
                     directory/hashid.json,
                     directory/hashid0xN.filetype,
                     directory/hashid0x(N-1).filetype,
@@ -211,38 +191,25 @@ class Manager:
         filetype:
             file extension of the output files
         executable:
-            The executable that generates the data.
-            executable is called using subprocess.run([interpreter, executable,
+            The executable that generates the data. Can be a string or list of strings.
+            Since executable is passed to subprocess.run, it can be a command with
+            arguments. If your code is an executable script or single command, this
+            can be passed just as a string (e.g. "./execute.sh" or "cp"). If your code
+            needs to be run with an interpreter or needs additional arguments (e.g.
+            "python script.py", "ls -l"), then you must pass the executable as a list
+            of strings (e.g. ["python", "script.py"], ["ls", "-l"]). Same as it would
+            be given to subprocess.run.
+            executable is called using subprocess.run(executable + [
             directory/hashid.json, directory/hashid.filetype],...) with
-            2 arguments - a json file as input (do not change the input else the file
+            a json file as input (do not change the input else the file
             is not recognized any more) and one output file (that executable needs to
             generate) (if your code does not take json as input you can for example
             parse json in bash using jq)
-        interpreter:
-            (optional) If your executable is not directly runnable but needs to be
-            called via an interpreter (e.g. python, julia, R, powershell, etc.) you can
-            specify the interpreter here as a whitespace separated string or list of
-            strings. For example if your executable is a python script you can set
-            interpreter="python.exe" and the code will be called as
-            subprocess.run(["python.exe", executable, ...],...)
-            You can also include interpreter arguments here. For example to run in
-            a specific conda environment, set interpreter=["conda", "run", "-n",
-            "myenv"] or interpreter="conda run -n myenv" and the code will be called
-            as subprocess.run(["conda", "run", "-n", "myenv", executable, ...],...)
         """
         self.directory = directory
         os.makedirs(self.__directory, exist_ok=True)
         self.filetype = filetype
         self.executable = executable
-
-        if interpreter is None or len(interpreter) == 0:
-            self.interpreter = []
-        elif type(interpreter) is str:
-            self.interpreter = interpreter.split()
-        elif type(interpreter) is list:
-            self.interpreter = interpreter
-        else:
-            raise Exception("interpreter must be None, a string or a list of strings")
 
     @property
     def directory(self) -> PathLike:
@@ -253,10 +220,10 @@ class Manager:
         return self.__directory
 
     @property
-    def executable(self) -> str:
+    def executable(self) -> list[str]:
         """The executable that generates the data.
 
-        The create method calls subprocess.run([interpreter, executable,
+        The create method calls subprocess.run([*executable,
         directory/hashid.json, directory/hashid.filetype],...) that is it must
         take 2 arguments - a json file as input (do not change the input else
         the file is not recognized any more) and one output file (that
@@ -267,7 +234,7 @@ class Manager:
         ----------------------------------
         If you intend to use the restart option (by passing a simulation number
         n>0 to create), the executable is called with
-        subprocess.run([interpreter, executable, directory/hashid.json,
+        subprocess.run([*executable, directory/hashid.json,
         directory/hashid0xN.filetype, directory/hashid0x(N-1).filetype],...)
         that is it must take a third argument (the previous simulation)
         """
@@ -278,34 +245,25 @@ class Manager:
         """File extension of the output files"""
         return self.__filetype
 
-    @property
-    def interpreter(self) -> list[str]:
-        """The interpreter that runs the executable."""
-        return self.__interpreter
-
     @directory.setter
     def directory(self, directory: PathLike):
         self.__directory = directory
         os.makedirs(self.__directory, exist_ok=True)
 
     @executable.setter
-    def executable(self, executable: str):
-        self.__executable = executable
+    def executable(self, executable: str | list[str]):
+        if executable is None or type(executable) not in [str, list]:
+            raise Exception("Executable must be given as a string or list of strings")
+        if len(executable) == 0:
+            raise Exception("Executable cannot be empty string or list")
+        elif type(executable) is str:
+            self.__executable = [executable]
+        elif type(executable) is list:
+            self.__executable = executable
 
     @filetype.setter
     def filetype(self, filetype: str):
         self.__filetype = filetype
-
-    @interpreter.setter
-    def interpreter(self, interpreter: str | list[str] | None):
-        if interpreter is None or len(interpreter) == 0:
-            self.__interpreter = []
-        elif type(interpreter) is str:
-            self.__interpreter = interpreter.split()
-        elif type(interpreter) is list:
-            self.__interpreter = interpreter
-        else:
-            raise Exception("interpreter must be None, a string or a list of strings")
 
     def create(
         self,
@@ -406,7 +364,7 @@ class Manager:
         if self.__executable is None:
             raise Exception("Executable not set! Set it with m.executable = '...'")
 
-        command = [*self.__interpreter, self.__executable, self.jsonfile(js), ncfile]
+        command = [*self.__executable, self.jsonfile(js), ncfile]
 
         # Check if the simulation is a restart
         if n > 0:
