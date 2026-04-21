@@ -17,7 +17,7 @@ def test_creation():
     print("TEST CREATION")
     m = sim.Manager(directory="creation_test", executable="cp", filetype="json")
     assert m.directory == "creation_test"
-    assert m.executable == "cp"
+    assert m.executable == ["cp"]
     assert m.filetype == "json"
     inputdata = {"Hello": "World"}
     m.create(inputdata)
@@ -29,20 +29,18 @@ def test_creation():
 
 def test_creation_with_interpreter():
     print("TEST CREATION WITH INTERPRETER")
-    executable = (
+    script = (
         "import sys; import subprocess; "
         "subprocess.run(['cp', sys.argv[1], sys.argv[2]])"
     )
     m = sim.Manager(
         directory="creation_interpreter_test",
-        executable=executable,
+        executable=["python", "-c", script],
         filetype="json",
-        interpreter="python -c",
     )
     assert m.directory == "creation_interpreter_test"
-    assert m.executable == executable
+    assert m.executable == ["python", "-c", script]
     assert m.filetype == "json"
-    assert m.interpreter == ["python", "-c"]
     inputdata = {"Hello": "World"}
     m.create(inputdata, 0)
     content = m.table()
@@ -126,24 +124,24 @@ def test_repeater():
 def test_repeater_with_interpreter():
     print("TEST REPEATER WITH INTERPRETER")
     os.makedirs("temp_repeater_interpreter", exist_ok=True)
-    executable = (
+    script = (
         "import sys; import subprocess; "
         "subprocess.run(['touch', sys.argv[1], sys.argv[2]])"
     )
     m = sim.Repeater(
-        executable,
+        ["python", "-c", script],
         "temp_repeater_interpreter/temp.json",
         "temp_repeater_interpreter/temp.nc",
-        interpreter="python -c",
     )
     inputdata = {"Hello": "World"}
     m.run(inputdata, error="display", stdout="display")
     assert os.path.isfile("temp_repeater_interpreter/temp.json")
     assert os.path.isfile("temp_repeater_interpreter/temp.nc")
-    m.executable = (
+    script = (
         "import sys; import subprocess; "
         "subprocess.run(['echo', sys.argv[1], sys.argv[2]])"
     )
+    m.executable = ["python", "-c", script]
     m.run(inputdata, error="display", stdout="display")
     m.clean()
     assert not os.path.isfile("temp_repeater_interpreter/temp.json")
