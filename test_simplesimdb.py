@@ -1,5 +1,7 @@
 import os.path
 
+import pytest
+
 import simplesimdb as sim
 
 # Run with pytest -s . to see stdout output
@@ -17,7 +19,7 @@ def test_creation():
     print("TEST CREATION")
     m = sim.Manager(directory="creation_test", executable="cp", filetype="json")
     assert m.directory == "creation_test"
-    assert m.executable == ["cp"]
+    assert m.executable == "cp"
     assert m.filetype == "json"
     inputdata = {"Hello": "World"}
     m.create(inputdata)
@@ -150,3 +152,35 @@ def test_repeater_with_interpreter():
     temp_folder_empty = not os.listdir("temp_repeater_interpreter")
     if temp_folder_exists and temp_folder_empty:
         os.rmdir("temp_repeater_interpreter")
+
+
+def test_executable_validation():
+    print("TEST EXECUTABLE VALIDATION")
+    match = "Executable must be given as a string or list of strings"
+    with pytest.raises(Exception, match=match):
+        sim.Manager(
+            directory="executable_validation_test", executable=123, filetype="json"
+        )
+
+    match = "Executable cannot be empty string or list"
+    with pytest.raises(Exception, match=match):
+        sim.Manager(
+            directory="executable_validation_test", executable="", filetype="json"
+        )
+
+    with pytest.raises(Exception, match=match):
+        sim.Manager(
+            directory="executable_validation_test", executable=[], filetype="json"
+        )
+
+    m = sim.Manager(
+        directory="executable_validation_test", executable="echo", filetype="json"
+    )
+
+    assert m.executable == "echo"
+    m.executable = "ls -l"
+    assert m.executable == "ls -l"
+    m.executable = ["ls", "-l"]
+    assert m.executable == ["ls", "-l"]
+    m.delete_all()
+    assert not os.path.isdir(m.directory)

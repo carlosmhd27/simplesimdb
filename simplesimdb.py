@@ -35,9 +35,9 @@ class Repeater:
         outputfile="temp.nc",
     ):
         """Set the executable and files to use in the run method"""
+        self.executable = executable
         self.inputfile = inputfile
         self.outputfile = outputfile
-        self.executable = executable
 
     @property
     def executable(self):
@@ -57,9 +57,7 @@ class Repeater:
             raise Exception("Executable must be given as a string or list of strings")
         elif len(executable) == 0:
             raise Exception("Executable cannot be empty string or list")
-        elif type(executable) is str:
-            self.__executable = [executable]
-        elif type(executable) is list:
+        elif type(executable) is str or type(executable) is list:
             self.__executable = executable
 
     @inputfile.setter
@@ -91,15 +89,18 @@ class Repeater:
         with open(self.inputfile, "w") as f:
             json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
         try:
+            command = []
+            if type(self.__executable) is str:
+                command = [self.__executable, self.inputfile, self.outputfile]
+            elif type(self.__executable) is list:
+                command = [*self.__executable, self.inputfile, self.outputfile]
+
             process = subprocess.run(
-                [
-                    *self.__executable,
-                    self.__inputfile,
-                    self.__outputfile,
-                ],
+                command,
                 check=True,
                 capture_output=True,
             )
+
             if stdout == "display":
                 print(process.stdout)
         except subprocess.CalledProcessError as e:
@@ -173,7 +174,7 @@ class Manager:
 
             subprocess.run(
                 [
-                    *executable,
+                    executable,
                     directory/hashid.json,
                     directory/hashid0xN.filetype,
                     directory/hashid0x(N-1).filetype,
@@ -199,7 +200,7 @@ class Manager:
             "python script.py", "ls -l"), then you must pass the executable as a list
             of strings (e.g. ["python", "script.py"], ["ls", "-l"]). Same as it would
             be given to subprocess.run.
-            executable is called using subprocess.run(executable + [
+            executable is called using subprocess.run([executable,
             directory/hashid.json, directory/hashid.filetype],...) with
             a json file as input (do not change the input else the file
             is not recognized any more) and one output file (that executable needs to
@@ -223,7 +224,7 @@ class Manager:
     def executable(self) -> list[str]:
         """The executable that generates the data.
 
-        The create method calls subprocess.run([*executable,
+        The create method calls subprocess.run([executable,
         directory/hashid.json, directory/hashid.filetype],...) that is it must
         take 2 arguments - a json file as input (do not change the input else
         the file is not recognized any more) and one output file (that
@@ -256,9 +257,7 @@ class Manager:
             raise Exception("Executable must be given as a string or list of strings")
         if len(executable) == 0:
             raise Exception("Executable cannot be empty string or list")
-        elif type(executable) is str:
-            self.__executable = [executable]
-        elif type(executable) is list:
+        elif type(executable) is str or type(executable) is list:
             self.__executable = executable
 
     @filetype.setter
@@ -364,7 +363,11 @@ class Manager:
         if self.__executable is None:
             raise Exception("Executable not set! Set it with m.executable = '...'")
 
-        command = [*self.__executable, self.jsonfile(js), ncfile]
+        command = []
+        if type(self.__executable) is str:
+            command = [self.__executable, self.jsonfile(js), ncfile]
+        elif type(self.__executable) is list:
+            command = [*self.__executable, self.jsonfile(js), ncfile]
 
         # Check if the simulation is a restart
         if n > 0:
