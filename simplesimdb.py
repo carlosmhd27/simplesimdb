@@ -29,7 +29,10 @@ class Repeater:
     """
 
     def __init__(
-        self, executable="./execute.sh", inputfile="temp.json", outputfile="temp.nc"
+        self,
+        executable: str | list[str] = "./execute.sh",
+        inputfile="temp.json",
+        outputfile="temp.nc",
     ):
         """Set the executable and files to use in the run method"""
         self.executable = executable
@@ -50,7 +53,12 @@ class Repeater:
 
     @executable.setter
     def executable(self, executable):
-        self.__executable = executable
+        if executable is None or type(executable) not in [str, list]:
+            raise Exception("Executable must be given as a string or list of strings")
+        elif len(executable) == 0:
+            raise Exception("Executable cannot be empty string or list")
+        elif type(executable) is str or type(executable) is list:
+            self.__executable = executable
 
     @inputfile.setter
     def inputfile(self, inputfile):
@@ -81,11 +89,18 @@ class Repeater:
         with open(self.inputfile, "w") as f:
             json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
         try:
+            command = []
+            if type(self.__executable) is str:
+                command = [self.__executable, self.inputfile, self.outputfile]
+            elif type(self.__executable) is list:
+                command = [*self.__executable, self.inputfile, self.outputfile]
+
             process = subprocess.run(
-                [self.__executable, self.__inputfile, self.__outputfile],
+                command,
                 check=True,
                 capture_output=True,
             )
+
             if stdout == "display":
                 print(process.stdout)
         except subprocess.CalledProcessError as e:
@@ -146,7 +161,7 @@ class Manager:
         self,
         directory: PathLike = "./data",
         filetype: str = "nc",
-        executable: str = "./execute.sh",
+        executable: str | list[str] = "./execute.sh",
     ):
         """Init the Manager class
 
@@ -177,14 +192,20 @@ class Manager:
         filetype:
             file extension of the output files
         executable:
-            The executable that generates the data.
+            The executable that generates the data. Can be a string or list of strings.
+            Since executable is passed to subprocess.run, it can be a command with
+            arguments. If your code is an executable script or single command, this
+            can be passed just as a string (e.g. "./execute.sh" or "cp"). If your code
+            needs to be run with an interpreter or needs additional arguments (e.g.
+            "python script.py", "ls -l"), then you must pass the executable as a list
+            of strings (e.g. ["python", "script.py"], ["ls", "-l"]). Same as it would
+            be given to subprocess.run.
             executable is called using subprocess.run([executable,
-            directory/hashid.json, directory/hashid.filetype],...) with 2 arguments
-            - a json file as input (do not change the input else the file is not
-            recognized any more) and one output file (that executable needs to
+            directory/hashid.json, directory/hashid.filetype],...) with
+            a json file as input (do not change the input else the file
+            is not recognized any more) and one output file (that executable needs to
             generate) (if your code does not take json as input you can for example
             parse json in bash using jq)
-
         """
         self.directory = directory
         os.makedirs(self.__directory, exist_ok=True)
@@ -200,7 +221,7 @@ class Manager:
         return self.__directory
 
     @property
-    def executable(self) -> str:
+    def executable(self) -> list[str]:
         """The executable that generates the data.
 
         The create method calls subprocess.run([executable,
@@ -214,7 +235,7 @@ class Manager:
         ----------------------------------
         If you intend to use the restart option (by passing a simulation number
         n>0 to create), the executable is called with
-        subprocess.run([executable, directory/hashid.json,
+        subprocess.run([*executable, directory/hashid.json,
         directory/hashid0xN.filetype, directory/hashid0x(N-1).filetype],...)
         that is it must take a third argument (the previous simulation)
         """
@@ -231,8 +252,13 @@ class Manager:
         os.makedirs(self.__directory, exist_ok=True)
 
     @executable.setter
-    def executable(self, executable: str):
-        self.__executable = executable
+    def executable(self, executable: str | list[str]):
+        if executable is None or type(executable) not in [str, list]:
+            raise Exception("Executable must be given as a string or list of strings")
+        if len(executable) == 0:
+            raise Exception("Executable cannot be empty string or list")
+        elif type(executable) is str or type(executable) is list:
+            self.__executable = executable
 
     @filetype.setter
     def filetype(self, filetype: str):
@@ -315,24 +341,7 @@ class Manager:
                     json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
             # Run the code to create output file
             try:
-                # Check if the simulation is a restart
-                if n == 0:
-                    process = subprocess.run(
-                        [self.__executable, self.jsonfile(js), ncfile],
-                        check=True,
-                        capture_output=True,
-                    )
-                    if stdout == "display":
-                        print(process.stdout)
-                else:
-                    previous_ncfile = self.outfile(js, n - 1)
-                    process = subprocess.run(
-                        [self.__executable, self.jsonfile(js), ncfile, previous_ncfile],
-                        check=True,
-                        capture_output=True,
-                    )
-                    if stdout == "display":
-                        print(process.stdout)
+                self.__execute(js, ncfile, n, stdout)
             except subprocess.CalledProcessError as e:
                 # clean up entry and escalate exception
                 if os.path.isfile(ncfile):
@@ -345,6 +354,28 @@ class Manager:
                     raise e
 
             return ncfile
+
+    def __execute(self, js, ncfile, n=0, stdout="ignore"):
+        """Helper function to run the executable with the correct arguments
+
+        This is used in create to keep the code cleaner and reduce identation depth.
+        """
+        if self.__executable is None:
+            raise Exception("Executable not set! Set it with m.executable = '...'")
+
+        command = []
+        if type(self.__executable) is str:
+            command = [self.__executable, self.jsonfile(js), ncfile]
+        elif type(self.__executable) is list:
+            command = [*self.__executable, self.jsonfile(js), ncfile]
+
+        # Check if the simulation is a restart
+        if n > 0:
+            previous_ncfile = self.outfile(js, n - 1)
+            command.append(previous_ncfile)
+        process = subprocess.run(command, check=True, capture_output=True)
+        if stdout == "display":
+            print(process.stdout)
 
     def recreate(
         self,
@@ -605,37 +636,21 @@ class Manager:
             )
         if hashid in registry:
             if name != registry[hashid]:
-                raise Exception(
-                    "The name '"
-                    + name
-                    + "' cannot be used! The\
- input file is already known under the name '"
-                    + registry[hashid]
-                    + "'. Use\
- delete to clear the registry."
-                )
+                raise Exception("The name '" + name + "' cannot be used! The\
+ input file is already known under the name '" + registry[hashid] + "'. Use\
+ delete to clear the registry.")
         else:
             jsonfile = os.path.join(self.__directory, hashid + ".json")
             if os.path.isfile(jsonfile):
-                raise Exception(
-                    "The name '"
-                    + name
-                    + "' cannot be used! The\
- input file is already known under the name '"
-                    + jsonfile
-                    + "'. Use\
- delete to clear the registry."
-                )
+                raise Exception("The name '" + name + "' cannot be used! The\
+ input file is already known under the name '" + jsonfile + "'. Use\
+ delete to clear the registry.")
 
             registry[hashid] = name
         for key, value in registry.items():
             if (value == name) and key != hashid:
-                raise Exception(
-                    "The name '"
-                    + name
-                    + "' is already in use\
- for a different simulation. Choose a different name!"
-                )
+                raise Exception("The name '" + name + "' is already in use\
+ for a different simulation. Choose a different name!")
 
         self.set_registry(registry)
 

@@ -1,5 +1,7 @@
 import os.path
 
+import pytest
+
 import simplesimdb as sim
 
 # Run with pytest -s . to see stdout output
@@ -21,6 +23,28 @@ def test_creation():
     assert m.filetype == "json"
     inputdata = {"Hello": "World"}
     m.create(inputdata)
+    content = m.table()
+    assert content == [inputdata]
+    m.delete_all()
+    assert not os.path.isdir(m.directory)
+
+
+def test_creation_with_interpreter():
+    print("TEST CREATION WITH INTERPRETER")
+    script = (
+        "import sys; import subprocess; "
+        "subprocess.run(['cp', sys.argv[1], sys.argv[2]])"
+    )
+    m = sim.Manager(
+        directory="creation_interpreter_test",
+        executable=["python", "-c", script],
+        filetype="json",
+    )
+    assert m.directory == "creation_interpreter_test"
+    assert m.executable == ["python", "-c", script]
+    assert m.filetype == "json"
+    inputdata = {"Hello": "World"}
+    m.create(inputdata, 0)
     content = m.table()
     assert content == [inputdata]
     m.delete_all()
@@ -82,13 +106,81 @@ def test_named_creation():
 
 def test_repeater():
     print("TEST REPEATER")
-    m = sim.Repeater("touch", "temp.json", "temp.nc")
+    os.makedirs("temp_repeater", exist_ok=True)
+    m = sim.Repeater("touch", "temp_repeater/temp.json", "temp_repeater/temp.nc")
     inputdata = {"Hello": "World"}
     m.run(inputdata, error="display", stdout="display")
-    assert os.path.isfile("temp.json")
-    assert os.path.isfile("temp.nc")
+    assert os.path.isfile("temp_repeater/temp.json")
+    assert os.path.isfile("temp_repeater/temp.nc")
     m.executable = "echo"
     m.run(inputdata, error="display", stdout="display")
     m.clean()
-    assert not os.path.isfile("temp.json")
-    assert not os.path.isfile("temp.nc")
+    assert not os.path.isfile("temp_repeater/temp.json")
+    assert not os.path.isfile("temp_repeater/temp.nc")
+    temp_folder_exists = os.path.isdir("temp_repeater")
+    temp_folder_empty = not os.listdir("temp_repeater")
+    if temp_folder_exists and temp_folder_empty:
+        os.rmdir("temp_repeater")
+
+
+def test_repeater_with_interpreter():
+    print("TEST REPEATER WITH INTERPRETER")
+    os.makedirs("temp_repeater_interpreter", exist_ok=True)
+    script = (
+        "import sys; import subprocess; "
+        "subprocess.run(['touch', sys.argv[1], sys.argv[2]])"
+    )
+    m = sim.Repeater(
+        ["python", "-c", script],
+        "temp_repeater_interpreter/temp.json",
+        "temp_repeater_interpreter/temp.nc",
+    )
+    inputdata = {"Hello": "World"}
+    m.run(inputdata, error="display", stdout="display")
+    assert os.path.isfile("temp_repeater_interpreter/temp.json")
+    assert os.path.isfile("temp_repeater_interpreter/temp.nc")
+    script = (
+        "import sys; import subprocess; "
+        "subprocess.run(['echo', sys.argv[1], sys.argv[2]])"
+    )
+    m.executable = ["python", "-c", script]
+    m.run(inputdata, error="display", stdout="display")
+    m.clean()
+    assert not os.path.isfile("temp_repeater_interpreter/temp.json")
+    assert not os.path.isfile("temp_repeater_interpreter/temp.nc")
+    temp_folder_exists = os.path.isdir("temp_repeater_interpreter")
+    temp_folder_empty = not os.listdir("temp_repeater_interpreter")
+    if temp_folder_exists and temp_folder_empty:
+        os.rmdir("temp_repeater_interpreter")
+
+
+def test_executable_validation():
+    print("TEST EXECUTABLE VALIDATION")
+    match = "Executable must be given as a string or list of strings"
+    with pytest.raises(Exception, match=match):
+        sim.Manager(
+            directory="executable_validation_test", executable=123, filetype="json"
+        )
+
+    match = "Executable cannot be empty string or list"
+    with pytest.raises(Exception, match=match):
+        sim.Manager(
+            directory="executable_validation_test", executable="", filetype="json"
+        )
+
+    with pytest.raises(Exception, match=match):
+        sim.Manager(
+            directory="executable_validation_test", executable=[], filetype="json"
+        )
+
+    m = sim.Manager(
+        directory="executable_validation_test", executable="echo", filetype="json"
+    )
+
+    assert m.executable == "echo"
+    m.executable = "ls -l"
+    assert m.executable == "ls -l"
+    m.executable = ["ls", "-l"]
+    assert m.executable == ["ls", "-l"]
+    m.delete_all()
+    assert not os.path.isdir(m.directory)
