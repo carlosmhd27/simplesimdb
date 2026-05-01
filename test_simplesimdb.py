@@ -37,7 +37,8 @@ def test_creation_with_interpreter():
     command = "cp" if not is_windows else "copy"
     script = (
         "import sys; import subprocess; "
-        f"subprocess.run(['{command}', sys.argv[1], sys.argv[2]], shell=True)"
+        f"subprocess.run(['{command}', sys.argv[1], sys.argv[2]], "
+        f"shell={is_windows})"
     )
     m = sim.Manager(
         directory="creation_interpreter_test",
