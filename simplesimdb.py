@@ -68,7 +68,9 @@ class Repeater:
     def outputfile(self, outputfile):
         self.__outputfile = outputfile
 
-    def run(self, js: JSONDict, error: str = "display", stdout: str = "ignore"):
+    def run(
+        self, js: JSONDict, error: str = "display", stdout: str = "ignore", **kwargs
+    ):
         """Write inputfile and then run a simulation
 
         Parameters
@@ -84,6 +86,8 @@ class Repeater:
         stdout:
             - "ignore" throw away std output
             - "display" print( process.stdout)
+        kwargs:
+            additional arguments passed to subprocess.run in the run method
 
         """
         with open(self.inputfile, "w") as f:
@@ -99,6 +103,7 @@ class Repeater:
                 command,
                 check=True,
                 capture_output=True,
+                **kwargs,
             )
 
             if stdout == "display":
@@ -271,6 +276,7 @@ class Manager:
         name: str = "",
         error: str = "raise",
         stdout: str = "ignore",
+        **kwargs,
     ) -> str:
         """Run a simulation if outfile does not exist yet
 
@@ -316,6 +322,8 @@ class Manager:
         stdout :
             - "ignore": throw away std output
             - "display": ``print( process.stdout)``
+        kwargs :
+            additional arguments passed to subprocess.run in the create method
 
         Return
         ------
@@ -341,7 +349,7 @@ class Manager:
                     json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
             # Run the code to create output file
             try:
-                self.__execute(js, ncfile, n, stdout)
+                self.__execute(js, ncfile, n, stdout, **kwargs)
             except subprocess.CalledProcessError as e:
                 # clean up entry and escalate exception
                 if os.path.isfile(ncfile):
@@ -355,7 +363,7 @@ class Manager:
 
             return ncfile
 
-    def __execute(self, js, ncfile, n=0, stdout="ignore"):
+    def __execute(self, js, ncfile, n=0, stdout="ignore", **kwargs):
         """Helper function to run the executable with the correct arguments
 
         This is used in create to keep the code cleaner and reduce identation depth.
@@ -373,7 +381,7 @@ class Manager:
         if n > 0:
             previous_ncfile = self.outfile(js, n - 1)
             command.append(previous_ncfile)
-        process = subprocess.run(command, check=True, capture_output=True)
+        process = subprocess.run(command, check=True, capture_output=True, **kwargs)
         if stdout == "display":
             print(process.stdout)
 
