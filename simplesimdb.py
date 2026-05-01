@@ -69,7 +69,14 @@ class Repeater:
         self.__outputfile = outputfile
 
     def run(
-        self, js: JSONDict, error: str = "display", stdout: str = "ignore", **kwargs
+        self,
+        js: JSONDict,
+        error: str = "display",
+        stdout: str = "ignore",
+        *,
+        check: bool = True,
+        capture_output: bool = True,
+        **kwargs,
     ):
         """Write inputfile and then run a simulation
 
@@ -86,6 +93,13 @@ class Repeater:
         stdout:
             - "ignore" throw away std output
             - "display" print( process.stdout)
+        check:
+            passed to subprocess.run, if True a non-zero exit code raises a
+            subprocess.CalledProcessError, if False, no exception is raised
+            and you can check the return code with process.returncode
+        capture_output:
+            passed to subprocess.run, if True, stdout and stderr are captured
+            and can be accessed with process.stdout and process.stderr.
         kwargs:
             additional arguments passed to subprocess.run in the run method
 
@@ -101,8 +115,8 @@ class Repeater:
 
             process = subprocess.run(
                 command,
-                check=True,
-                capture_output=True,
+                check=check,
+                capture_output=capture_output,
                 **kwargs,
             )
 
@@ -276,6 +290,9 @@ class Manager:
         name: str = "",
         error: str = "raise",
         stdout: str = "ignore",
+        *,
+        check: bool = True,
+        capture_output: bool = True,
         **kwargs,
     ) -> str:
         """Run a simulation if outfile does not exist yet
@@ -322,6 +339,13 @@ class Manager:
         stdout :
             - "ignore": throw away std output
             - "display": ``print( process.stdout)``
+        check :
+            passed to subprocess.run, if True a non-zero exit code raises a
+            subprocess.CalledProcessError, if False, no exception is raised
+            and you can check the return code with process.returncode
+        capture_output :
+            passed to subprocess.run, if True, stdout and stderr are captured
+            and can be accessed with process.stdout and process.stderr,
         kwargs :
             additional arguments passed to subprocess.run in the create method
 
@@ -349,7 +373,15 @@ class Manager:
                     json.dump(js, f, sort_keys=True, ensure_ascii=True, indent=4)
             # Run the code to create output file
             try:
-                self.__execute(js, ncfile, n, stdout, **kwargs)
+                self.__execute(
+                    js,
+                    ncfile,
+                    n,
+                    stdout,
+                    check=check,
+                    capture_output=capture_output,
+                    **kwargs,
+                )
             except subprocess.CalledProcessError as e:
                 # clean up entry and escalate exception
                 if os.path.isfile(ncfile):
@@ -363,7 +395,17 @@ class Manager:
 
             return ncfile
 
-    def __execute(self, js, ncfile, n=0, stdout="ignore", **kwargs):
+    def __execute(
+        self,
+        js,
+        ncfile,
+        n=0,
+        stdout="ignore",
+        *,
+        check=True,
+        capture_output=True,
+        **kwargs,
+    ):
         """Helper function to run the executable with the correct arguments
 
         This is used in create to keep the code cleaner and reduce identation depth.
@@ -381,7 +423,9 @@ class Manager:
         if n > 0:
             previous_ncfile = self.outfile(js, n - 1)
             command.append(previous_ncfile)
-        process = subprocess.run(command, check=True, capture_output=True, **kwargs)
+        process = subprocess.run(
+            command, check=check, capture_output=capture_output, **kwargs
+        )
         if stdout == "display":
             print(process.stdout)
 
