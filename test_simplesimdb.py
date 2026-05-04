@@ -8,6 +8,8 @@ import simplesimdb as sim
 
 is_windows = os.name == "nt"
 
+py_touch = "import sys; [open(arg, 'a').close() for arg in sys.argv[1:]]"
+
 
 def test_construction_and_destruction():
     print("TEST")
@@ -34,12 +36,7 @@ def test_creation():
 
 def test_creation_with_interpreter():
     print("TEST CREATION WITH INTERPRETER")
-    command = "cp" if not is_windows else "copy"
-    script = (
-        "import sys; import subprocess; "
-        f"subprocess.run(['{command}', sys.argv[1], sys.argv[2]], "
-        f"shell={is_windows})"
-    )
+    script = "import sys; import shutil; shutil.copy(sys.argv[1], sys.argv[2])"
     m = sim.Manager(
         directory="creation_interpreter_test",
         executable=["python", "-c", script],
@@ -73,15 +70,7 @@ def test_selection():
 
 def test_restart():
     print("TEST RESTART")
-    executable = (
-        "touch"
-        if not is_windows
-        else [
-            "python",
-            "-c",
-            "import sys; open(sys.argv[2], 'a').close()",
-        ]
-    )
+    executable = ["python", "-c", py_touch]
     m = sim.Manager(directory="restart_test", executable=executable, filetype="th")
     inputdata = {"Hello": "World"}
     for i in range(0, 17):
@@ -104,15 +93,7 @@ def test_restart():
 
 def test_named_creation():
     print("TEST NAMED CREATION")
-    executable = (
-        "touch"
-        if not is_windows
-        else [
-            "python",
-            "-c",
-            "import sys; open(sys.argv[2], 'a').close()",
-        ]
-    )
+    executable = ["python", "-c", py_touch]
     m = sim.Manager(
         directory="creation_named_test", executable=executable, filetype="json"
     )
@@ -131,19 +112,7 @@ def test_named_creation():
 def test_repeater():
     print("TEST REPEATER")
     os.makedirs("temp_repeater", exist_ok=True)
-    executable = (
-        "touch"
-        if not is_windows
-        else [
-            "python",
-            "-c",
-            (
-                "import sys;"
-                "open(sys.argv[1], 'a').close();"
-                "open(sys.argv[2], 'a').close()"
-            ),
-        ]
-    )
+    executable = ["python", "-c", py_touch]
     m = sim.Repeater(executable, "temp_repeater/temp.json", "temp_repeater/temp.nc")
     inputdata = {"Hello": "World"}
     m.run(inputdata, error="display", stdout="display")
@@ -158,47 +127,6 @@ def test_repeater():
     temp_folder_empty = not os.listdir("temp_repeater")
     if temp_folder_exists and temp_folder_empty:
         os.rmdir("temp_repeater")
-
-
-def test_repeater_with_interpreter():
-    print("TEST REPEATER WITH INTERPRETER")
-    os.makedirs("temp_repeater_interpreter", exist_ok=True)
-    command = (
-        "'touch'"
-        if not is_windows
-        else (
-            "'python', '-c',"
-            "'import sys;"
-            'open(sys.argv[1], "a").close();'
-            'open(sys.argv[2], "a").close()\''
-        )
-    )
-    script = (
-        "import sys; import subprocess; "
-        f"subprocess.run([{command}, sys.argv[1], sys.argv[2]])"
-    )
-    m = sim.Repeater(
-        ["python", "-c", script],
-        "temp_repeater_interpreter/temp.json",
-        "temp_repeater_interpreter/temp.nc",
-    )
-    inputdata = {"Hello": "World"}
-    m.run(inputdata, error="display", stdout="display")
-    assert os.path.isfile("temp_repeater_interpreter/temp.json")
-    assert os.path.isfile("temp_repeater_interpreter/temp.nc")
-    script = (
-        "import sys; import subprocess; "
-        "subprocess.run(['echo', sys.argv[1], sys.argv[2]])"
-    )
-    m.executable = ["python", "-c", script]
-    m.run(inputdata, error="display", stdout="display")
-    m.clean()
-    assert not os.path.isfile("temp_repeater_interpreter/temp.json")
-    assert not os.path.isfile("temp_repeater_interpreter/temp.nc")
-    temp_folder_exists = os.path.isdir("temp_repeater_interpreter")
-    temp_folder_empty = not os.listdir("temp_repeater_interpreter")
-    if temp_folder_exists and temp_folder_empty:
-        os.rmdir("temp_repeater_interpreter")
 
 
 def test_executable_validation():
